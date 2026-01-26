@@ -1,43 +1,683 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Toast Guideline Checker</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Toast ガイドラインチェッカー (比較対応版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-<body class="bg-gradient-to-br from-blue-50 to-indigo-100">
-  <div class="max-w-4xl mx-auto py-12">
-      <h1 class="text-4xl font-bold text-center mb-8 text-gray-900">🎯 Toast Guideline Checker</h1>h1>
-      <div class="bg-white rounded-lg shadow-xl p-8">
-            <div class="space-y-6">
-                    <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Figma Personal Access Token</label>label>
-                                <input type="password" id="figmaToken" placeholder="figd_..." class="w-full px-4 py-2 border rounded-lg">
-                    </div>
-                      <div>
-                                  <label class="block text-sm font-medium text-gray-700 mb-2">Claude API Key</label>label>
-                                  <input type="password" id="claudeKey" placeholder="sk-ant-..." class="w-full px-4 py-2 border rounded-lg">
-                      </div>
-                      <button onclick="analyze()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg">🔍 分析開始</button>button>
-            </div>
-      </div>
-        <div id="results" class="hidden mt-8 bg-white rounded-lg shadow-xl p-8">
-                <p id="resultText" class="text-gray-700"></p>p>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-8">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">Toast ガイドラインチェッカー</h1>
+            <p class="text-gray-600">PC版とSP版の比較分析に対応</p>
         </div>
-  </div>
+
+        <!-- セットアップ画面 -->
+        <div id="setupScreen" class="bg-white rounded-lg shadow-lg p-8">
+            <h2 class="text-2xl font-semibold mb-6">⚙️ 設定</h2>
+
+            <div id="errorMessage" class="hidden mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p class="text-red-800 font-semibold mb-2"></p>
+                <details class="text-sm text-red-700">
+                    <summary class="cursor-pointer hover:underline">詳細エラー情報</summary>
+                    <pre id="errorDetails" class="mt-2 p-2 bg-red-100 rounded overflow-auto text-xs"></pre>
+                </details>
+            </div>
+
+            <!-- 分析モード選択 -->
+            <div class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 class="font-semibold text-blue-900 mb-3">分析モード</h3>
+                <div class="space-y-2">
+                    <label class="flex items-center cursor-pointer">
+                        <input type="radio" name="analysisMode" value="single" checked onchange="updateAnalysisMode()" class="mr-2">
+                        <span class="text-gray-700">単一ファイル分析（PC版のみ or SP版のみ）</span>
+                    </label>
+                    <label class="flex items-center cursor-pointer">
+                        <input type="radio" name="analysisMode" value="compare" onchange="updateAnalysisMode()" class="mr-2">
+                        <span class="text-gray-700">比較分析（PC版 vs SP版）</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <!-- 共通設定 -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Figma Personal Access Token
+                    </label>
+                    <input
+                        type="password"
+                        id="figmaToken"
+                        placeholder="figd_..."
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                    <p class="mt-1 text-sm text-gray-500">
+                        <span class="text-green-600 ml-2" id="figmaTokenSaved"></span>
+                    </p>
+                </div>
+
+                <!-- PC版設定 -->
+                <div class="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <h3 class="font-semibold text-purple-900 mb-3">🖥️ PC版</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Figma File Key (PC版)
+                            </label>
+                            <input
+                                type="text"
+                                id="figmaFileKeyPC"
+                                placeholder="ABC123xyz..."
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            />
+                            <p class="mt-1 text-sm text-gray-500">
+                                <span class="text-green-600 ml-2" id="figmaFileKeyPCSaved"></span>
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                対象ページ名（オプション）
+                            </label>
+                            <input
+                                type="text"
+                                id="targetPageNamePC"
+                                placeholder="例: Toast Components - PC"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SP版設定（比較モード時のみ表示） -->
+                <div id="spSection" class="hidden p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <h3 class="font-semibold text-green-900 mb-3">📱 SP版</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                Figma File Key (SP版)
+                            </label>
+                            <input
+                                type="text"
+                                id="figmaFileKeySP"
+                                placeholder="XYZ789abc..."
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            />
+                            <p class="mt-1 text-sm text-gray-500">
+                                <span class="text-green-600 ml-2" id="figmaFileKeySPSaved"></span>
+                            </p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">
+                                対象ページ名（オプション）
+                            </label>
+                            <input
+                                type="text"
+                                id="targetPageNameSP"
+                                placeholder="例: Toast Components - SP"
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Anthropic API Key
+                    </label>
+                    <input
+                        type="password"
+                        id="anthropicKey"
+                        placeholder="sk-ant-..."
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                    <p class="mt-1 text-sm text-gray-500">
+                        <span class="text-green-600 ml-2" id="anthropicKeySaved"></span>
+                    </p>
+                </div>
+
+                <button
+                    onclick="startAnalysis()"
+                    class="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-indigo-700 transition"
+                >
+                    🔍 分析開始
+                </button>
+
+                <button
+                    onclick="clearSavedKeys()"
+                    class="w-full bg-gray-100 text-gray-600 py-2 px-4 rounded-lg text-sm hover:bg-gray-200 transition mt-2"
+                >
+                    🗑️ 保存されたキー情報を削除
+                </button>
+            </div>
+        </div>
+
+        <!-- 処理中画面 -->
+        <div id="processingScreen" class="hidden bg-white rounded-lg shadow-lg p-8">
+            <div class="text-center">
+                <div class="mb-6">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-full mb-4">
+                        <div class="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                    <h2 class="text-2xl font-semibold mb-2">処理中...</h2>
+                    <p id="currentTask" class="text-gray-600">準備中...</p>
+                </div>
+
+                <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+                    <div id="progressBar" class="bg-indigo-600 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                <p id="progressText" class="text-sm text-gray-500">0%</p>
+            </div>
+        </div>
+
+        <!-- 結果画面 -->
+        <div id="resultsScreen" class="hidden">
+            <div class="bg-white rounded-lg shadow-lg p-8 mb-6">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-2xl font-semibold">📊 分析結果</h2>
+                        <p id="resultsSummary" class="text-gray-600 mt-1"></p>
+                    </div>
+                    <button
+                        onclick="downloadReport()"
+                        class="bg-indigo-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-indigo-700 transition"
+                    >
+                        📥 レポートダウンロード
+                    </button>
+                </div>
+
+                <!-- 比較サマリー（比較モード時のみ） -->
+                <div id="comparisonSummary" class="hidden mb-6"></div>
+
+                <div id="resultsContainer" class="space-y-4"></div>
+
+                <button
+                    onclick="resetApp()"
+                    class="mt-6 w-full bg-gray-200 text-gray-700 py-3 px-6 rounded-lg font-medium hover:bg-gray-300 transition"
+                >
+                    🔄 新しい分析を開始
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
-          async function analyze() {
-                  const figmaToken = document.getElementById('figmaToken').value;
-                  const claudeKey = document.getElementById('claudeKey').value;
-                  if (!figmaToken || !claudeKey) { alert('全て入力してください'); return; }
-                  document.getElementById('results').classList.remove('hidden');
-                  document.getElementById('resultText').textContent = '✅ 設定が保存されました。このアプリはローカルでご利用ください。';
-          }
-    </script>
-</body>body>
-</html>html>
-    </script>
-                      </div>
-                    </div></title>
-  </head>
+        const PROXY_URL = 'http://localhost:3000';
+        let analysisResults = [];
+        let comparisonMode = false;
+
+        const TOAST_GUIDELINES = `# Toast コンポーネント ガイドライン
+
+## 概要
+Toast は「ユーザーの作業を中断しない軽量フィードバック」のための通知です。
+
+## 使い分け（いつ Toast / いつ別コンポーネント）
+
+### Toast が適切
+①データベース更新系
+- フォーム保存（DB 更新）
+- 設定変更の保存
+- 下書き保存（サーバー or ローカル）
+- ステータス更新（公開 / 非公開 切り替え）
+
+②DB を伴わないが Toast が適切なケース
+クライアント内完結の操作
+- コピー完了
+- 並び替え・表示切り替え
+- フィルタ適用
+
+非同期処理の完了通知
+- ファイルアップロード完了
+- メール送信完了
+- バックグラウンド処理完了
+- インポート／エクスポート完了
+
+一時的・可逆的な操作結果
+- 「元に戻す」可能な削除
+- 一括操作の完了
+- 軽微な失敗
+
+### Toast が不適切
+- 重大エラー（データ損失・課金・権限など）→ Dialog
+- 継続的に見せたい告知 → Banner
+- タスクの進捗を追う → Progress / Inline status
+
+## 種類
+- Default：補足・状態通知
+- Success：完了・成功
+- Warning：注意・条件不足
+- Error：失敗・システムエラー
+
+## 構成
+- Container（背景 / 角丸 / 影）
+- Status Icon（任意だが推奨）
+- Text block（Title / Message）
+- Action（任意：最大1つ）
+- Close（任意：×）
+
+## サイズ & スペーシング
+- 最小高さ：56px
+- 左右パディング：12–16px
+- アイコンとテキスト間：8px
+- 角丸：8–12px
+- 最大幅：Desktop 360–420px、Mobile 画面幅 − 32px
+
+## NGパターン
+- 3つ以上のActionを並べる
+- 3行以上の長文
+- 画面中央に出して操作を邪魔する`;
+
+        // モード切り替え
+        function updateAnalysisMode() {
+            const mode = document.querySelector('input[name="analysisMode"]:checked').value;
+            comparisonMode = (mode === 'compare');
+            document.getElementById('spSection').classList.toggle('hidden', !comparisonMode);
+        }
+
+        // ページ読み込み時に保存された値を復元
+        window.addEventListener('DOMContentLoaded', () => {
+            const keys = ['figmaToken', 'figmaFileKeyPC', 'figmaFileKeySP', 'anthropicKey'];
+            keys.forEach(key => {
+                const saved = localStorage.getItem(key);
+                const element = document.getElementById(key);
+                if (saved && element) {
+                    element.value = saved;
+                    const savedIndicator = document.getElementById(key + 'Saved');
+                    if (savedIndicator) savedIndicator.textContent = '✓ 保存済み';
+                }
+            });
+        });
+
+        function saveKeys() {
+            const keys = {
+                figmaToken: document.getElementById('figmaToken').value.trim(),
+                figmaFileKeyPC: document.getElementById('figmaFileKeyPC').value.trim(),
+                figmaFileKeySP: document.getElementById('figmaFileKeySP').value.trim(),
+                anthropicKey: document.getElementById('anthropicKey').value.trim()
+            };
+            Object.entries(keys).forEach(([key, value]) => {
+                if (value) localStorage.setItem(key, value);
+            });
+        }
+
+        function clearSavedKeys() {
+            if (confirm('保存されたキー情報をすべて削除しますか？')) {
+                ['figmaToken', 'figmaFileKeyPC', 'figmaFileKeySP', 'anthropicKey'].forEach(key => {
+                    localStorage.removeItem(key);
+                    const element = document.getElementById(key);
+                    if (element) element.value = '';
+                });
+                alert('保存されたキー情報を削除しました');
+            }
+        }
+
+        function showError(message, details = null) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.querySelector('p').textContent = message;
+            if (details) {
+                document.getElementById('errorDetails').textContent = JSON.stringify(details, null, 2);
+            }
+            errorDiv.classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').classList.add('hidden');
+        }
+
+        function updateProgress(percent, task) {
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressText').textContent = Math.round(percent) + '%';
+            document.getElementById('currentTask').textContent = task;
+        }
+
+        function switchScreen(screen) {
+            document.getElementById('setupScreen').classList.add('hidden');
+            document.getElementById('processingScreen').classList.add('hidden');
+            document.getElementById('resultsScreen').classList.add('hidden');
+            document.getElementById(screen + 'Screen').classList.remove('hidden');
+        }
+
+        async function fetchFigmaComponents(fileKey, targetPage, figmaToken) {
+            const response = await fetch(
+                `${PROXY_URL}/api/figma/files/${fileKey}?depth=2&geometry=paths`,
+                { headers: { 'X-Figma-Token': figmaToken } }
+            );
+
+            if (!response.ok) {
+                throw new Error(`Figmaファイルの取得に失敗: ${response.status}`);
+            }
+
+            const fileData = await response.json();
+            
+            if (fileData.err || fileData.error) {
+                throw new Error(`Figma API エラー: ${fileData.err || fileData.error}`);
+            }
+
+            if (!fileData.document) {
+                throw new Error('Figmaファイルのdocumentが見つかりません');
+            }
+
+            const findToasts = (node, results = [], target = null) => {
+                if (!node) return results;
+                if (target && node.type === 'CANVAS' && node.name !== target) return results;
+                if (node.type === 'CANVAS') console.log(`ページ検索中: ${node.name}`);
+                
+                if (node.name && typeof node.name === 'string' && node.name.toLowerCase().includes('toast')) {
+                    results.push({ id: node.id, name: node.name });
+                    console.log(`発見: ${node.name}`);
+                }
+                
+                if (Array.isArray(node.children)) {
+                    node.children.forEach(child => findToasts(child, results, target));
+                }
+                
+                return results;
+            };
+
+            const toasts = findToasts(fileData.document, [], targetPage || null);
+            
+            if (toasts.length === 0) {
+                throw new Error('Toastコンポーネントが見つかりませんでした');
+            }
+
+            return { toasts, fileKey };
+        }
+
+        async function analyzeImage(imageData, imageName, anthropicKey, platform = '') {
+            const response = await fetch(`${PROXY_URL}/api/claude`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-api-key": anthropicKey
+                },
+                body: JSON.stringify({
+                    model: "claude-sonnet-4-20250514",
+                    max_tokens: 2000,
+                    messages: [{
+                        role: "user",
+                        content: [
+                            {
+                                type: "image",
+                                source: {
+                                    type: "base64",
+                                    media_type: "image/png",
+                                    data: imageData
+                                }
+                            },
+                            {
+                                type: "text",
+                                text: `${platform ? `[${platform}版] ` : ''}以下のToastコンポーネントのガイドラインに基づいて、添付画像のToastデザインを分析してください。
+
+${TOAST_GUIDELINES}
+
+# 分析項目
+1. 使用場面の適切性
+2. 種類の適切性
+3. 構成要素
+4. サイズ仕様
+5. NGパターン
+
+# 出力形式（必ずJSON形式で）
+\`\`\`json
+{
+  "component_name": "${imageName}",
+  "compliance_score": 85,
+  "usage_context_appropriate": "適切",
+  "type_detected": "Success",
+  "violations": [],
+  "recommendations": [],
+  "summary": "総合評価"
+}
+\`\`\``
+                            }
+                        ]
+                    }]
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Claude API エラー: ${errorData.error?.message || response.statusText}`);
+            }
+
+            const data = await response.json();
+            const text = data.content[0].text;
+            console.log('Claude APIレスポンス:', text.substring(0, 100));
+            
+            const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/);
+            if (jsonMatch) {
+                return JSON.parse(jsonMatch[1]);
+            }
+            return JSON.parse(text);
+        }
+
+        async function startAnalysis() {
+            const figmaToken = document.getElementById('figmaToken').value.trim();
+            const figmaFileKeyPC = document.getElementById('figmaFileKeyPC').value.trim();
+            const anthropicKey = document.getElementById('anthropicKey').value.trim();
+
+            if (!figmaToken || !figmaFileKeyPC || !anthropicKey) {
+                showError('必須項目を入力してください');
+                return;
+            }
+
+            if (comparisonMode) {
+                const figmaFileKeySP = document.getElementById('figmaFileKeySP').value.trim();
+                if (!figmaFileKeySP) {
+                    showError('比較モードではSP版のFile Keyも必要です');
+                    return;
+                }
+            }
+
+            saveKeys();
+            hideError();
+            switchScreen('processing');
+            updateProgress(0, '準備中...');
+
+            try {
+                // PC版を取得
+                updateProgress(10, 'PC版を取得中...');
+                const targetPagePC = document.getElementById('targetPageNamePC').value.trim();
+                const pcData = await fetchFigmaComponents(figmaFileKeyPC, targetPagePC, figmaToken);
+                
+                let spData = null;
+                if (comparisonMode) {
+                    updateProgress(20, 'SP版を取得中...');
+                    const figmaFileKeySP = document.getElementById('figmaFileKeySP').value.trim();
+                    const targetPageSP = document.getElementById('targetPageNameSP').value.trim();
+                    spData = await fetchFigmaComponents(figmaFileKeySP, targetPageSP, figmaToken);
+                }
+
+                // 画像URL取得
+                const pcIds = pcData.toasts.map(t => t.id).join(',');
+                const pcImagesResponse = await fetch(
+                    `${PROXY_URL}/api/figma/images/${pcData.fileKey}?ids=${pcIds}&format=png&scale=2`,
+                    { headers: { 'X-Figma-Token': figmaToken } }
+                );
+                const pcImages = (await pcImagesResponse.json()).images;
+
+                let spImages = null;
+                if (spData) {
+                    const spIds = spData.toasts.map(t => t.id).join(',');
+                    const spImagesResponse = await fetch(
+                        `${PROXY_URL}/api/figma/images/${spData.fileKey}?ids=${spIds}&format=png&scale=2`,
+                        { headers: { 'X-Figma-Token': figmaToken } }
+                    );
+                    spImages = (await spImagesResponse.json()).images;
+                }
+
+                // 分析
+                analysisResults = [];
+                const totalCount = pcData.toasts.length + (spData ? spData.toasts.length : 0);
+                let currentIndex = 0;
+
+                // PC版分析
+                for (const toast of pcData.toasts) {
+                    try {
+                        currentIndex++;
+                        updateProgress(30 + (60 * currentIndex / totalCount), `PC版分析中: ${toast.name} (${currentIndex}/${totalCount})`);
+                        
+                        const imageUrl = pcImages[toast.id];
+                        if (!imageUrl) continue;
+
+                        const imgResponse = await fetch(imageUrl);
+                        const imgBlob = await imgResponse.blob();
+                        const base64 = await new Promise(resolve => {
+                            const reader = new FileReader();
+                            reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                            reader.readAsDataURL(imgBlob);
+                        });
+
+                        const analysis = await analyzeImage(base64, toast.name, anthropicKey, 'PC');
+                        analysisResults.push({
+                            platform: 'PC',
+                            name: toast.name,
+                            imageUrl: imageUrl,
+                            analysis: analysis
+                        });
+
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    } catch (error) {
+                        console.error(`エラー: ${toast.name}`, error);
+                        analysisResults.push({
+                            platform: 'PC',
+                            name: toast.name,
+                            imageUrl: pcImages[toast.id],
+                            analysis: { error: error.message, compliance_score: 0 }
+                        });
+                    }
+                }
+
+                // SP版分析
+                if (spData) {
+                    for (const toast of spData.toasts) {
+                        try {
+                            currentIndex++;
+                            updateProgress(30 + (60 * currentIndex / totalCount), `SP版分析中: ${toast.name} (${currentIndex}/${totalCount})`);
+                            
+                            const imageUrl = spImages[toast.id];
+                            if (!imageUrl) continue;
+
+                            const imgResponse = await fetch(imageUrl);
+                            const imgBlob = await imgResponse.blob();
+                            const base64 = await new Promise(resolve => {
+                                const reader = new FileReader();
+                                reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                                reader.readAsDataURL(imgBlob);
+                            });
+
+                            const analysis = await analyzeImage(base64, toast.name, anthropicKey, 'SP');
+                            analysisResults.push({
+                                platform: 'SP',
+                                name: toast.name,
+                                imageUrl: imageUrl,
+                                analysis: analysis
+                            });
+
+                            await new Promise(resolve => setTimeout(resolve, 1000));
+                        } catch (error) {
+                            console.error(`エラー: ${toast.name}`, error);
+                            analysisResults.push({
+                                platform: 'SP',
+                                name: toast.name,
+                                imageUrl: spImages[toast.id],
+                                analysis: { error: error.message, compliance_score: 0 }
+                            });
+                        }
+                    }
+                }
+
+                updateProgress(100, '分析完了！');
+                displayResults();
+
+            } catch (err) {
+                switchScreen('setup');
+                showError(err.message, { error: err.message });
+            }
+        }
+
+        function displayResults() {
+            switchScreen('results');
+
+            const pcResults = analysisResults.filter(r => r.platform === 'PC');
+            const spResults = analysisResults.filter(r => r.platform === 'SP');
+
+            // サマリー
+            let summaryText = `PC版: ${pcResults.length}件`;
+            if (comparisonMode) {
+                summaryText += `, SP版: ${spResults.length}件`;
+            }
+            document.getElementById('resultsSummary').textContent = summaryText;
+
+            // 比較サマリー
+            if (comparisonMode) {
+                const comparisonDiv = document.getElementById('comparisonSummary');
+                comparisonDiv.classList.remove('hidden');
+                
+                // 名前でマッチング
+                const pcNames = new Set(pcResults.map(r => r.name));
+                const spNames = new Set(spResults.map(r => r.name));
+                const commonNames = [...pcNames].filter(name => spNames.has(name));
+                const pcOnly = [...pcNames].filter(name => !spNames.has(name));
+                const spOnly = [...spNames].filter(name => !pcNames.has(name));
+
+                comparisonDiv.innerHTML = `
+                    <div class="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h3 class="font-semibold text-blue-900 mb-2">🔍 比較サマリー</h3>
+                        <ul class="text-sm text-blue-800 space-y-1">
+                            <li>✅ 両方に存在: ${commonNames.length}件</li>
+                            <li>🖥️ PC版のみ: ${pcOnly.length}件 ${pcOnly.length > 0 ? `(${pcOnly.join(', ')})` : ''}</li>
+                            <li>📱 SP版のみ: ${spOnly.length}件 ${spOnly.length > 0 ? `(${spOnly.join(', ')})` : ''}</li>
+                        </ul>
+                    </div>
+                `;
+            }
+
+            // 結果表示
+            const container = document.getElementById('resultsContainer');
+            container.innerHTML = '';
+
+            if (comparisonMode) {
+                // 比較モード：ペアで表示
+                const pcNames = new Set(pcResults.map(r => r.name));
+                const spNames = new Set(spResults.map(r => r.name));
+                const allNames = new Set([...pcNames, ...spNames]);
+
+                allNames.forEach(name => {
+                    const pcResult = pcResults.find(r => r.name === name);
+                    const spResult = spResults.find(r => r.name === name);
+
+                    const card = document.createElement('div');
+                    card.className = 'border-2 border-gray-300 rounded-lg p-6';
+                    
+                    let cardHTML = `<h3 class="text-xl font-bold mb-4">${name}</h3><div class="grid grid-cols-2 gap-6">`;
+
+                    // PC版
+                    cardHTML += '<div class="border-l-4 border-purple-500 pl-4">';
+                    cardHTML += '<h4 class="font-semibold text-purple-700 mb-2">🖥️ PC版</h4>';
+                    if (pcResult) {
+                        cardHTML += createResultCard(pcResult);
+                    } else {
+                        cardHTML += '<p class="text-gray-500 italic">このコンポーネントはPC版に存在しません</p>';
+                    }
+                    cardHTML += '</div>';
+
+                    // SP版
+                    cardHTML += '<div class="border-l-4 border-green-500 pl-4">';
+                    cardHTML += '<h4 class="font-semibold text-green-700 mb-2">📱 SP版</h4>';
+                    if (spResult) {
+                        cardHTML += createResultCard(spResult);
+                    } else {
+                        cardHTML += '<p class="text-gray-500 italic">このコンポーネントはSP版に存在しません</p>';
+                    }
+                    cardHTML += '</div>';
+
+                    cardHTML += '</div>';
+                    card.innerHTML = cardHTML;
+                    container.appendChild(card);
+                });
+            } else {
+                // 単一モード
+                analysisResults.forEach(result => {
+                    const card = document.createElement('div');
+                    card.className = 'border border-gray-200 rounded-lg p
