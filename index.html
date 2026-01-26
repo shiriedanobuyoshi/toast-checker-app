@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Toast ガイドラインチェッカー (PC/SP対応・表記揺れ検出版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></ script>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-8">
     <div class="max-w-6xl mx-auto">
@@ -161,6 +162,7 @@
                 </div>
 
                 <!-- 矛盾検出結果 -->
+                                <button onclick="downloadReportPDF()" class="bg-purple-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-purple-700 transition ml-2">📄 PDF ダウンロード</button>button>
                 <div id="inconsistenciesContainer" class="mb-6"></div>
 
                 <!-- タブ -->
@@ -1272,6 +1274,58 @@ ${JSON.stringify(spResults.map(r => ({
             pcResults = [];
             spResults = [];
             inconsistencies = [];
+
+            	function downloadReportPDF() {
+                    		const report = {
+                                			generated_at: new Date().toISOString(),
+                                			pc: {
+                                                				total: pcResults.length,
+                                                				average_score: pcResults.filter(r => !r.analysis.error).reduce((sum, r) => sum + r.analysis.score, 0) / pcResults.filter(r => !r.analysis.error).length || 0,
+                                                				results: pcResults
+                                            },
+                                			sp: {
+                                                				total: spResults.length,
+                                                				average_score: spResults.filter(r => !r.analysis.error).reduce((sum, r) => sum + r.analysis.score, 0) / spResults.filter(r => !r.analysis.error).length || 0,
+                                                				results: spResults
+                                            },
+                                			inconsistencies: inconsistencies
+                            };
+
+                    		const element = document.createElement('div');
+                    		element.innerHTML = `
+                            			<div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                                        				<h1>Toast ガイドラインチェッカー 分析レポート</h1>
+                                                        				<p><strong>生成日時:</strong> ${new Date().toLocaleString('ja-JP')}</p>
+                                                                        				<hr>
+
+                                                                                                        				<h2>📊 PC版 分析結果</h2>
+                                                                                                                        				<p><strong>総チェック数:</strong> ${report.pc.total}</p>
+                                                                                                                                        				<p><strong>平均スコア:</strong> ${(report.pc.average_score * 100).toFixed(1)}%</p>
+                                                                                                                                                        				
+                                                                                                                                                                        				<h2>📱 SP版 分析結果</h2>
+                                                                                                                                                                                        				<p><strong>総チェック数:</strong> ${report.sp.total}</p>
+                                                                                                                                                                                                        				<p><strong>平均スコア:</strong> ${report.sp.average_score * 100).toFixed(1)}%</p>
+                                                                                                                                                                                                                                                     				
+                                                                                                                                                                                                                                                     				<h2>⚠️ 矛盾分析</h2>
+                                                                                                                                                                                                                                                     				<p><strong>検出された矛盾数:</strong> ${report.inconsistencies.length}</p>
+                                                                                                                                                                                                                                                                    				${report.inconsistencies.length > 0 ? `
+                                                                                                                                                                                                                                                                                    					<ul>
+                                                                                                                                                                                                                                                                                                        					${report.inconsistencies.map(inc => `<li>${inc}</li>`).join('')}
+                                                                                                                                                                                                                                                                                                                            					</ul>
+                                                                                                                                                                                                                                                                                                                                                				` : '<p>矛盾は検出されませんでした。</p>'}
+                                                                                                                                                                                                                                                                                                                                                                			</div>
+                                                                                                                                                                                                                                                                                                                                                                            		`;
+
+                    		const opt = {
+                                			margin: 10,
+                                			filename: 'toast_analysis_report_' + new Date().toISOString().split('T')[0] + '.pdf',
+                                			image: { type: 'jpeg', quality: 0.98 },
+                                			html2canvas: { scale: 2 },
+                                			jsPDF: { orientation: 'portrait', unit: 'mm', format: 'a4' }
+                            };
+
+                    		html2pdf().set(opt).from(element).save();
+                }
             switchScreen('setup');
             document.getElementById('progressBar').style.width = '0%';
         }
