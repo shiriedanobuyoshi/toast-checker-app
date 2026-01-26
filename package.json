@@ -1,0 +1,9 @@
+{
+    "name": "toast-checker-app",
+    "version": "1.0.0",
+    "description": "Toast Guideline Checker",
+    "private": true,
+    "engines": {
+          "node": "20.x"
+    }
+}
