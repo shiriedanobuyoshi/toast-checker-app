@@ -1,0 +1,19 @@
+{
+    "version": 2,
+    "buildCommand": "echo 'No build needed'",
+    "installCommand": "npm install",
+    "crons": [
+          {
+                  "path": "/api/cron",
+                  "schedule": "0 9 * * 1"
+          }
+    ],
+    "env": {
+          "FIGMA_TOKEN": "@figma_token",
+          "ANTHROPIC_API_KEY": "@anthropic_api_key",
+          "PC_FILE_KEY": "@pc_file_key",
+          "SP_FILE_KEY": "@sp_file_key",
+          "PC_PAGE_NAME": "@pc_page_name",
+          "SP_PAGE_NAME": "@sp_page_name"
+    }
+}
